@@ -110,7 +110,7 @@ function add_to_cm($data){
 		if($key != 'ID'){
 			// Get the proper CM version of the field name
 			//print 'Current key: ' . $key . PHP_EOL;
-			$new_key = field_mapping($key);
+			$new_key = get_field_mapping($key);
 			
 			$data[$new_key] = $data[$key];
 			unset($data[$key]);
@@ -123,7 +123,13 @@ function add_to_cm($data){
 
 }
 
-function field_mapping($key){
+/* 
+* field_mapping
+* Returns the field name that Campaign Monitor recognizes for given $key
+* @param string $key
+*
+*/
+function get_field_mapping($key){
 
 	$fields = array(
 		"EmailAddress"=>"Email Address",
