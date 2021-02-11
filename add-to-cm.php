@@ -15,8 +15,8 @@ $log->info('Import Into Campaign Monitor', array('Start Time' => date('Y-m-d H:i
 $live_list_id = '4e7469f84cca66107bfc0c39542b6a11';
 $test_list_id = 'f382c03b099b30557e36175e4256f5ff';
 
-$env = 'dev';
-$select_limit = 120;
+$env = 'prod';
+$select_limit = 100;
 
 $db_host = '127.0.0.1';
 $db_name = 'ems_bbec';
@@ -27,7 +27,7 @@ ORM::configure('mysql:host='.$db_host.';dbname='.$db_name);
 ORM::configure('username', $db_user);
 ORM::configure('password', '');
 
-$results = ORM::for_table('subscribers_uj_issues')->where(array('CMUpdated'=>'No'))->limit($select_limit)->find_array();
+$results = ORM::for_table('subscribers_uj_issues')->where(array('CMUpdated'=>'No', 'ExistsInMC'=>'No'))->limit($select_limit)->find_array();
 
 /*
 * Get a limited number of email addreses from table
@@ -45,12 +45,25 @@ if($results){
 				$add_result = add_to_cm(refine_data($result));
 				if($add_result == true){
 					print 'Contact Added: ' . $EmailAddress . PHP_EOL;
+
+					$contact_info = ORM::for_table('subscribers_uj_issues')->find_one($result['ID']);
+					$contact_info->CMUpdated = "Yes";
+					$contact_info->ExistsInMC = "Yes";
+					$contact_info->save();
+				}else{
+					$contact_info = ORM::for_table('subscribers_uj_issues')->find_one($result['ID']);
+					$contact_info->CMUpdated = "No";
+					$contact_info->save();					
 				}
 			}else{ 
 				$log->info('Error received from Campaign Monitor', $exist_check);
 			}
 		}else{ 
 			print 'Exists : ' . $EmailAddress .  PHP_EOL; 
+			$contact_info = ORM::for_table('subscribers_uj_issues')->find_one($result['ID']);
+			$contact_info->CMUpdated = "No";
+			$contact_info->ExistsInMC = "Yes";
+			$contact_info->save();	
 		}
 	}
 }
