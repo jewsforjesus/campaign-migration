@@ -12,11 +12,13 @@ $log_filename = 'logs/cm-import-'.time().'.log';
 $log->pushHandler(new StreamHandler(__DIR__.'/'.$log_filename, Logger::INFO));
 $log->info('Import Into Campaign Monitor', array('Start Time' => date('Y-m-d H:i:s')));
 
+$table_to_use = 'cm_import_events_2104';
+$subscrtions_to_add = array("Special event invitations","Partnering opportunities");
 $live_list_id = '4e7469f84cca66107bfc0c39542b6a11';
 $test_list_id = 'f382c03b099b30557e36175e4256f5ff';
 
-$env = 'prod';
-$select_limit = 100;
+$env = 'dev';
+$select_limit = 1;
 
 $db_host = '127.0.0.1';
 $db_name = 'ems_bbec';
@@ -27,31 +29,33 @@ ORM::configure('mysql:host='.$db_host.';dbname='.$db_name);
 ORM::configure('username', $db_user);
 ORM::configure('password', '');
 
-$results = ORM::for_table('subscribers_uj_issues')->where(array('CMUpdated'=>'No', 'ExistsInMC'=>'No'))->limit($select_limit)->find_array();
-
+$results = ORM::for_table($table_to_use)->where(array('ExistsInMC'=>'No','CMUpdated'=>'No'))->limit($select_limit)->find_array();
 /*
-* Get a limited number of email addreses from table
+* Get a limited number of records from table
 * Retrieve details from Campaign Monitor
 */
 if($results){
 	foreach($results as $result){
+		unset($believer_subscriptions);
 		$EmailAddress = $result['EmailAddress'];
-
+		
 		// check to see if email address/contact exists in Campaign Monitor
 		$exist_check = get_cm_details($EmailAddress);
+		print 'Processing Email Address: '.$EmailAddress . PHP_EOL;
 
 		if(isset($exist_check['Code'])){
 			if($exist_check['Code'] == 203){
+
 				$add_result = add_to_cm(refine_data($result));
 				if($add_result == true){
 					print 'Contact Added: ' . $EmailAddress . PHP_EOL;
 
-					$contact_info = ORM::for_table('subscribers_uj_issues')->find_one($result['ID']);
+					$contact_info = ORM::for_table($table_to_use)->find_one($result['ID']);
 					$contact_info->CMUpdated = "Yes";
 					$contact_info->ExistsInMC = "Yes";
 					$contact_info->save();
 				}else{
-					$contact_info = ORM::for_table('subscribers_uj_issues')->find_one($result['ID']);
+					$contact_info = ORM::for_table($table_to_use)->find_one($result['ID']);
 					$contact_info->CMUpdated = "No";
 					$contact_info->save();					
 				}
@@ -59,11 +63,78 @@ if($results){
 				$log->info('Error received from Campaign Monitor', $exist_check);
 			}
 		}else{ 
-			print 'Exists : ' . $EmailAddress .  PHP_EOL; 
-			$contact_info = ORM::for_table('subscribers_uj_issues')->find_one($result['ID']);
-			$contact_info->CMUpdated = "No";
+			// At this point the contact exists
+			// We need to retain any existing subscriptions
+			print 'Email address already in Campaign Monitor : ' . $EmailAddress .  PHP_EOL; 
+			
+			$existing_subs = array();
+			$update_post_data = array();
+
+			if(isset($exist_check['CustomFields'])){
+				// Gather all the existing items user is currentlys subscribed to
+				foreach ($exist_check['CustomFields'] as $key => $custom_field) {
+					if($custom_field['Key'] == 'Opt-in – Believer'){
+						$existing_subs[] = $custom_field['Value'];
+					}
+				}
+
+				// Add required subscriptions
+				if(!in_array("Special event invitations",$existing_subs)){
+					$existing_subs[] = "Special event invitations";
+				}
+
+				// Add all subsriptions to the user's record
+				foreach($existing_subs as $sub){
+					$update_post_data['CustomFields'][] = array("Key"=>'Opt-in – Believer',"Value"=>$sub);
+				}
+
+				$update_post_data['ConsentToTrack'] = "Yes";
+				$update_post_data['Contact Code'] = $result['ContactCode'];
+
+				$json_post = json_encode($update_post_data, JSON_PRETTY_PRINT);
+
+				unset($believer_subscriptions);
+				// Update contact
+				if($env == 'dev'){
+					$update_endpoint = 'https://api.createsend.com/api/v3.2/subscribers/'.$test_list_id.'.json?email=' . $EmailAddress;
+				}else{
+					$update_endpoint = 'https://api.createsend.com/api/v3.2/subscribers/'.$live_list_id.'.json?email=' . $EmailAddress;
+				}
+				print $update_endpoint . PHP_EOL;
+
+			$curl = curl_init();
+
+			curl_setopt_array($curl, array(
+			  CURLOPT_URL => $update_endpoint,
+			  CURLOPT_RETURNTRANSFER => true,
+			  CURLOPT_ENCODING => '',
+			  CURLOPT_MAXREDIRS => 10,
+			  CURLOPT_TIMEOUT => 0,
+			  CURLOPT_FOLLOWLOCATION => true,
+			  CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
+			  CURLOPT_CUSTOMREQUEST => 'PUT',
+			  CURLOPT_POSTFIELDS =>$json_post,
+			  CURLOPT_HTTPHEADER => array(
+			    'Authorization: Basic eGFNN1U2dkNYeUpHcm1EdkozQmVLeFZDaVFiRGZiei9CSzFLWmRkaC92UVNNeXRVUTcxMjY2bU53ZjFtOGhYVXlXdnljL09meVd3dHhoZ0cwVGkvaWZGSm5qcTVxQmQyeFVJOFNJV2h0RXBuTURudXc5WHpldGF2Qzl1K0VmL09hUmNNU3MxeXNWNWNqUUExRXVXdVFRPT06',
+			    'Content-Type: application/json'
+			  ),
+			));
+
+			$response = curl_exec($curl);
+
+			curl_close($curl);
+			echo $response;
+
+			$contact_info = ORM::for_table($table_to_use)->find_one($result['ID']);
+			$contact_info->CMUpdated = "Yes";
 			$contact_info->ExistsInMC = "Yes";
 			$contact_info->save();	
+
+			}
+
+
+			unset($believer_subscriptions);
+
 		}
 	}
 }
@@ -94,6 +165,9 @@ function add_to_cm($data){
 	$post_array['CustomFields'] = $data;
 
 	$json_post = json_encode($post_array, JSON_PRETTY_PRINT);
+
+
+	//return $json_post;
 
 	$curl = curl_init();
 
@@ -169,7 +243,7 @@ function get_cm_details($EmailAddress){
 * @param array $data
 */
 function refine_data($data){
-	
+
 	ksort($data);
 
 	unset($data['City']);
@@ -202,13 +276,20 @@ function refine_data($data){
 	foreach($data as $key=>$value){
 		if(!empty($key)){
 			if($key !== 'Email Address' && $key !== 'ID'){
-				$refined_data_array[] = array("Key"=>$key,"Field Value"=>$value);
+				$refined_data_array[] = array("Key"=>$key,"Value"=>$value);
 			}else{
 				$refined_data_array[$key] = $value;
 			}
 		}
 	}
- 	$refined_data_array[] = array("Key"=>'Opt-in – UJ/UG',"Value"=>'Monthly Issues articles');
+
+	
+	if(isset($data['believer_subscriptions'])){
+		foreach($data['believer_subscriptions'] as $value){
+			$refined_data_array[] = array("Key"=>'Opt-in – Believer',"Value"=>$value);
+		}
+	}
+ 	//$refined_data_array[] = array("Key"=>'Opt-in – Believer',"Value"=>'Monthly Issues articles');
 	return($refined_data_array);
 }
 
@@ -258,7 +339,8 @@ function get_field_mapping($key){
 		"Gender"=>"Gender",
 		"PhoneNumber"=>"Phone Number",
 		"IsChurchContact"=>"Is Church Contact",
-		"DoyoubelieveinJesus"=>"Do you believe in Jesus?"
+		"DoyoubelieveinJesus"=>"Do you believe in Jesus?",
+		"ContactCode"=>"Contact Code"
 		);
 
 	return $fields[$key];
