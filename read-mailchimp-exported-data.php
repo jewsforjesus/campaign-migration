@@ -1,5 +1,9 @@
 <?php
-
+/**
+* Reads a Mailchimp export ( Excel file ) and stores it into the given
+* database table
+* Uses PhpSpreadsheet library
+*/
 error_reporting(E_ALL);
 require 'vendor/j4mie/idiorm/idiorm.php';
 require 'vendor/autoload.php';
@@ -19,12 +23,11 @@ ORM::configure('password', '');
 
 
 $current_date = date("Ymd",time());
-$file_to_read =  'data/Mailchimp-UJ-Issues-Export.xlsx';
+$file_to_read =  'data/CM-Import-Events-2014.xlsx';
+$table_to_use = 'cm_import_events_2104';
 $inputFileType = PhpOffice\PhpSpreadsheet\IOFactory::identify($file_to_read);
 $reader = PhpOffice\PhpSpreadsheet\IOFactory::createReader($inputFileType);
-
 $spreadsheet = $reader->load($file_to_read);
-
 $sheetData = $spreadsheet->getActiveSheet()->toArray(null, true, true, true);
 
 // Remove the first row which is the header
@@ -32,10 +35,10 @@ unset($sheetData[1]);
 
 foreach( $sheetData as $data){
 
-	$contact = ORM::for_table('subscribers_uj_issues')->create();
+	$contact = ORM::for_table($table_to_use )->create();
 
 	$contact->EmailAddress = $data['C'];
-	$contact->FirstName = $data['A'];
+	$contact->FirstName = addslashes($data['A']);
 	$contact->LastName = $data['B'];
 	$contact->Language = $data['D'];
 	$contact->JFJBranch = $data['F'];
@@ -63,7 +66,7 @@ foreach( $sheetData as $data){
 	$contact->InteractionDate = $data['AC'];
 	$contact->DaysSinceHouseholdLargestRecognition = $data['AD'];
 	$contact->IsChurchContact = $data['AE'];
-	$contact->Salutation = $data['AH'];
+	//$contact->Salutation = $data['AH'];
 	$contact->UnbouncePageID = $data['S'];
 	$contact->UnbouncePageVariant = $data['T'];
 	$contact->UnbounceSubmissionDate = $data['U'];
@@ -72,7 +75,8 @@ foreach( $sheetData as $data){
 	try{
 		$contact->save();	
 	} catch ( Exception $e) {
-		print_r($e);
+		// Print out the email address of the record that it fails to store
+		print $data['C'] . PHP_EOL;
 	}
 	
 
