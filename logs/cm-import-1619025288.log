@@ -1,0 +1,2 @@
+[2021-04-21T17:14:48.184114+00:00] CM-Import.INFO: Import Into Campaign Monitor {"Start Time":"2021-04-21 17:14:48"} []
+[2021-04-21T17:14:48.637837+00:00] CM-Import.INFO: Campaign Monitor Add Response:  ["{\"Code\":204,\"Message\":\"Email Address exists in suppression list. Subscriber is not added.\"}"] []

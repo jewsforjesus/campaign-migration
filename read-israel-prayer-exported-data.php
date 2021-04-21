@@ -37,12 +37,14 @@ foreach( $sheetData as $data){
 
 	$contact = ORM::for_table($table_to_use )->create();
 
-	$contact->EmailAddress = $data['C'];
 	$contact->FirstName = addslashes($data['A']);
+	
+	
 	$contact->LastName = $data['B'];
+	$contact->EmailAddress = $data['C'];
 	$contact->Language = $data['D'];
-	$contact->JFJBranch = $data['F'];
-	$contact->JFJStaffStatus = $data['G'];
+	$contact->ContactCode = $data['G'];
+/*	$contact->JFJStaffStatus = $data['G'];
 	$contact->CreatedDatetime = date('Y-m-d H:i:s');
 	$contact->MissionaryCode = $data['H'];
 	$contact->MissionaryAssignment = $data['I'];
@@ -50,7 +52,7 @@ foreach( $sheetData as $data){
 	$contact->BBECSystemID = $data['P'];
 	$contact->BBECLookupID = $data['Q'];
 	$contact->Tags = $data['BB'];
-	$contact->ContactCode = $data['E'];
+	
 	$contact->HouseholdFirstRecognitionAmount = $data['J'];
 	$contact->JFJStaffRole = $data['W'];
 	$contact->HouseholdLastRecognitionAmount = $data['M'];
@@ -66,10 +68,9 @@ foreach( $sheetData as $data){
 	$contact->InteractionDate = $data['AC'];
 	$contact->DaysSinceHouseholdLargestRecognition = $data['AD'];
 	$contact->IsChurchContact = $data['AE'];
-	//$contact->Salutation = $data['AH'];
 	$contact->UnbouncePageID = $data['S'];
 	$contact->UnbouncePageVariant = $data['T'];
-	$contact->UnbounceSubmissionDate = $data['U'];
+	$contact->UnbounceSubmissionDate = $data['U'];*/
 
 
 	try{

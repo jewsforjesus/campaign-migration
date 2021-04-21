@@ -1,0 +1,5 @@
+[2021-04-21T17:35:31.723769+00:00] CM-Import.INFO: Import Into Campaign Monitor {"Start Time":"2021-04-21 17:35:31"} []
+[2021-04-21T17:35:49.522374+00:00] CM-Import.INFO: Campaign Monitor Add Response:  ["{\"Code\":204,\"Message\":\"Email Address exists in suppression list. Subscriber is not added.\"}"] []
+[2021-04-21T17:36:35.995963+00:00] CM-Import.INFO: Campaign Monitor Add Response:  ["{\"Code\":204,\"Message\":\"Email Address exists in suppression list. Subscriber is not added.\"}"] []
+[2021-04-21T17:36:43.370834+00:00] CM-Import.INFO: Campaign Monitor Add Response:  ["{\"Code\":204,\"Message\":\"Email Address exists in suppression list. Subscriber is not added.\"}"] []
+[2021-04-21T17:36:53.020302+00:00] CM-Import.INFO: Campaign Monitor Add Response:  ["{\"Code\":204,\"Message\":\"Email Address exists in suppression list. Subscriber is not added.\"}"] []

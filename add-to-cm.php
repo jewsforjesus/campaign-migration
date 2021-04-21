@@ -8,17 +8,17 @@ use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
 
 $log = new Logger('CM-Import');
-$log_filename = 'logs/cm-import-'.time().'.log';
+$log_filename = 'logs/cm-import-israel-prayer'.time().'.log';
 $log->pushHandler(new StreamHandler(__DIR__.'/'.$log_filename, Logger::INFO));
 $log->info('Import Into Campaign Monitor', array('Start Time' => date('Y-m-d H:i:s')));
 
-$table_to_use = 'cm_import_events_2104';
-$subscrtions_to_add = array("Special event invitations","Partnering opportunities");
+$table_to_use = 'israel_prayer';
+$subscriptions_to_add = array("Israel Prayer");
 $live_list_id = '4e7469f84cca66107bfc0c39542b6a11';
 $test_list_id = 'f382c03b099b30557e36175e4256f5ff';
 
-$env = 'dev';
-$select_limit = 1;
+$env = 'prod';
+$select_limit = 1400;
 
 $db_host = '127.0.0.1';
 $db_name = 'ems_bbec';
@@ -36,7 +36,7 @@ $results = ORM::for_table($table_to_use)->where(array('ExistsInMC'=>'No','CMUpda
 */
 if($results){
 	foreach($results as $result){
-		unset($believer_subscriptions);
+		//unset($believer_subscriptions);
 		$EmailAddress = $result['EmailAddress'];
 		
 		// check to see if email address/contact exists in Campaign Monitor
@@ -45,7 +45,8 @@ if($results){
 
 		if(isset($exist_check['Code'])){
 			if($exist_check['Code'] == 203){
-
+				print 'New Email Address: ' . $EmailAddress . PHP_EOL;
+				$result['believer_subscriptions'] = $subscriptions_to_add;
 				$add_result = add_to_cm(refine_data($result));
 				if($add_result == true){
 					print 'Contact Added: ' . $EmailAddress . PHP_EOL;
@@ -56,10 +57,11 @@ if($results){
 					$contact_info->save();
 				}else{
 					$contact_info = ORM::for_table($table_to_use)->find_one($result['ID']);
-					$contact_info->CMUpdated = "No";
+					$contact_info->CMUpdated = "Error";
 					$contact_info->save();					
 				}
-			}else{ 
+			}else{
+				print 'Error occured for email address ' . $EmailAddress . PHP_EOL;
 				$log->info('Error received from Campaign Monitor', $exist_check);
 			}
 		}else{ 
@@ -79,8 +81,8 @@ if($results){
 				}
 
 				// Add required subscriptions
-				if(!in_array("Special event invitations",$existing_subs)){
-					$existing_subs[] = "Special event invitations";
+				if(!in_array("Israel Prayer",$existing_subs)){
+					$existing_subs[] = "Israel Prayer";
 				}
 
 				// Add all subsriptions to the user's record
@@ -100,7 +102,7 @@ if($results){
 				}else{
 					$update_endpoint = 'https://api.createsend.com/api/v3.2/subscribers/'.$live_list_id.'.json?email=' . $EmailAddress;
 				}
-				print $update_endpoint . PHP_EOL;
+				//print $update_endpoint . PHP_EOL;
 
 			$curl = curl_init();
 
@@ -244,6 +246,7 @@ function get_cm_details($EmailAddress){
 */
 function refine_data($data){
 
+	$refined_data_array = array();
 	ksort($data);
 
 	unset($data['City']);
@@ -260,6 +263,11 @@ function refine_data($data){
 	unset($data['ExistsInMC']);
 	unset($data['CMUpdated']);
 
+	if(isset($data['believer_subscriptions'])){
+		foreach($data['believer_subscriptions'] as $value){
+			$refined_data_array[] = array("Key"=>'Opt-in – Believer',"Value"=>$value);
+		}
+	}
 
 	foreach($data as $key=>$value){
 
@@ -272,7 +280,6 @@ function refine_data($data){
 		
 	}
 
-	$refined_data_array = array();
 	foreach($data as $key=>$value){
 		if(!empty($key)){
 			if($key !== 'Email Address' && $key !== 'ID'){
@@ -282,13 +289,9 @@ function refine_data($data){
 			}
 		}
 	}
-
 	
-	if(isset($data['believer_subscriptions'])){
-		foreach($data['believer_subscriptions'] as $value){
-			$refined_data_array[] = array("Key"=>'Opt-in – Believer',"Value"=>$value);
-		}
-	}
+	//print_r($refined_data_array);
+
  	//$refined_data_array[] = array("Key"=>'Opt-in – Believer',"Value"=>'Monthly Issues articles');
 	return($refined_data_array);
 }
